@@ -22,18 +22,19 @@ ConvertTerminology <- function(x) {
 }
 
 ## Pull data for a selected table into a dataframe
-ConvertData <- function(x) {
-  jsonlite:::simplifyDataFrame(x$tableResults, flatten = FALSE)
+ConvertData <- function(mytbl) {
+  jsonlite:::simplifyDataFrame(mytbl$tableResults, flatten = FALSE)
 }
 
 ## Pull info for a selected table into a dataframe
-ConvertInfo <- function(x) {
-  map(x, ~ .x[c("tid", "docid", "page", "collection_id", "doi", "pmid", "url")] %>% as_tibble()) %>% 
+ConvertInfo <- function(collection) {
+  map(collection, ~ .x[c("tid", "docid", "page", "collection_id", "doi", "pmid", "url")] %>% as_tibble()) %>% 
     bind_rows()
 }
 
-ConvertNotes <- function(x) {
-  x$annotations %>% as_tibble()
+ConvertNotes <- function(collection) {
+  map(collection, ~ .x$annotations %>% as_tibble()) %>% 
+    bind_rows(.id = "tid")
 }
 
 ## Get concept IDs for a selected table into for any set of rows and columns
@@ -73,22 +74,21 @@ GetDataRowsCols <- function(mytbl,
 }
 
 ## Examples ----
-
+runexamples <- function() {
 # Two functions ReadCollection and ConvertInfo work at the collection level
 # the rest work at the level of individual tables
+## click on raw json file in Rstudio and view
 ## Read in a collection
 clctn <- ReadCollection("collection_132_all.json")
 ## Get the information for a collection
 ConvertInfo(clctn)
 
+## Convert notes into dataframe for an individual table or collection
+ConvertNotes(clctn)
+
 ## The remaining functions are designed to work on a single table
 ## As with any R function, they can be applied to all the tables in a collection
 ## via map faily of functions (or the base R equivalents such as lapply)
-
-## Convert notes into dataframe for an individual table or collection
-ConvertNotes(clctn$TID12078)
-# for this example only, show map
-map(clctn, ConvertNotes)
 
 ## Convert terminology into dataframe for an individual table or collection
 ConvertTerminology(clctn$TID12078)
@@ -129,5 +129,6 @@ terminology <- map(clctn2, ConvertTerminology)
 map_int(terminology, nrow)
 terminology <- bind_rows(terminology, .id = "tid")
 mydata <- map(clctn2, ConvertData)
+map_int(mydata, nrow)
 mydata %>% names()
-
+}

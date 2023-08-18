@@ -1,5 +1,6 @@
 library(tidyverse)
 library(janitor)
+library(jsonlite)
 mydata <- read_json("PMC7442954_1_124_all_data.json",
                     simplifyVector = TRUE)
 

@@ -1,0 +1,226 @@
+---
+title: "Working with tabletidier outputs"
+output: github_document
+date: "2023-08-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warn=FALSE, message=FALSE}
+source("restructuring.R")
+```
+
+# tldr
+
+The functions in [restructuring.R](/restructuring.R) are designed to help you work with the json outputs from TableTidier.
+
+# Reason for using json
+
+We used json because it allows more flexible data structures than do flat files such as comma-separated value files (CSV) or tab-delimited files, while conversion into flat files is reasonably straightforward using R packages (or equivalents in other software). If you are familiar with lists in R, you can think of json files as nested lists.
+
+The raw json files are difficult for a human to read. For example the first 200 characters of the json file for a collection looks like this.
+
+```{r rawjson}
+read_lines("collection_132_all.json") %>% str_sub(1,200)
+```
+
+It looks a little better in a text editor with json support.
+
+![Snapshot of collection using a json text editor](json_image_text.png)
+
+Moreover, if you paste a json file such as "collection_123_all.json" into json viewer (just google to find one) you can see the list structure quite clearly. For our json files, the highest level of structure is each table. Within each table there are sections for information, notes, data and terminology. There are also objects which allow us to map between data and terminology.
+
+![Snapshot of collection using a json viewer](json_image.png)
+
+# Conversion into R objects
+
+It is quite straightforward to convert these into R objects (nested lists) using the `R` `jsonlite` package. The package also has functions that will automatically simplify the objects into, for example, dataframes and vectors. However, many people are not comfortable with nested lists, and even among those who are, almost all will be unfamiliar with the structure of json files that TableTidier produces. Therefore, we have created a set of helper functions to work with TableTidier json files. The following demonstrates their usage.
+
+# Reading in collections
+
+Collections can be read in as follows. The whole file is read in as a list object and the information for each table is printed.
+
+```{r readcollection}
+clctn <- ReadCollection("collection_132_all_additional.json")
+```
+
+We can interrogate the object read in to find out more. It is essentially a list.
+
+```{r objclass}
+class(clctn)
+
+```
+
+At the top level of this particular collection there are 6 tables, named by the table IDs (TIDs).
+
+```{r clcntlvl}
+names(clctn)
+```
+
+Within a single table we have table information (tid, docid, page, collection_id, doi, pmid and url), annotations, data (tableResults), terminology (metadata) and list objects to allow mapping between the data and terminology (concMapper and posiMapper).
+
+```{r tlblvl}
+names(clctn$TID12094)
+```
+
+The "information" fields were printed when we read in the collection. You can also access these as a dataframe using the function `ConvertInfo`.
+
+```{r convertinfo}
+ConvertInfo(clctn)
+```
+
+Finally, at the collection level it is also useful to extract annotations into a dataframe.
+
+```{r concertnotes}
+ConvertNotes(clctn)
+```
+
+# Extracting data and terminology
+
+For extracting data and terminology into more usable R objects it makes sense to do so for individual tables as well as for collections. We can extract data for single tables thus.
+
+```{r convertdata}
+# print first 6 rows only
+ConvertData(clctn$TID12095) %>% 
+  head()
+```
+
+We can also extract data for the whole collections at once using `map` (or if preferred base `R` can use `lapply` ).
+
+```{r convertdatawhole}
+# print first row only
+map(clctn, ~ ConvertData(.x) %>% head(1))
+```
+
+We can extract terminology similarly, both for a single table
+
+```{r convertterminology}
+# print first 6 rows only
+ConvertTerminology(clctn$TID12095) %>% 
+  head()
+```
+
+and for multiple tables. Since terminology tables are always in the same format, it often makes sense to bind these into a single table after extracting them.
+
+```{r converttermwhole}
+# print first 6 rows
+map(clctn, ~ ConvertTerminology(.x)) %>% 
+  bind_rows(.id = "tid") %>% 
+  slice(1:6)
+```
+
+# Mapping between data and terminology
+
+As well as allowing us to nest tables within collections, one of the main motivations for using json files was to preserve the relationship between the data and the terminology. This is done via the `concMapper` and `posiMapper` objects. To simplify this process we have provided the helper functions SearchConcepts, GetCuis and GetDataRowsCols. First we describe how to use these. Next, for those interested we explain the structures in more detail.
+
+## Approach using SearchConcepts, GetCuis and GetDataRowsCols
+
+We simplify mapping between terminology and data using the functions SearchConcepts, GetCuis and GetDataRowsCols.
+
+First we search for concepts with text or a concept ID we are interested in. It will often make sense to do this after browsing the terminology tables created by `ConvertTerminology` or looking at the tables on TableTidier itself. Assuming we have an idea of what concepts were are intersted in we can search. We can search either using a concept ID or string.
+
+First we can search for a string, in this case age. The search is a regular expression search so is by default case sensitive.
+
+```{r showsearch}
+res <- SearchConcepts(clctn$TID12078, cutext = "pressure")
+res
+```
+
+We could also have found this using the concept ID
+
+```{r showsearch2}
+res <- SearchConcepts(clctn$TID12078, cuis = "C0005823")
+res
+```
+
+Next we can use this number to identify which original rows and columns the concept relates to.
+
+```{r showrc}
+res_r_c <- GetDataRowsCols(clctn$TID12078, res)
+res_r_c
+```
+
+Finally, we can obtain the relevant data by joining the above table to the data table by rows and columns.
+
+```{r getdata}
+mydf <- ConvertData(clctn$TID12078)
+mydf %>% 
+  semi_join(res_r_c)
+```
+
+## Mapping between data and terminology for multiple tables
+
+If comfortable using `map` or `lapply`, it is also straightforward to pull multiple concepts at once.
+
+```{r multipleconcepts}
+search_res <- map(clctn, function(each_tbl){
+  SearchConcepts(each_tbl, cutext = "Placebo")
+})
+# take only those tables with a Placebo concept
+clctn_slct <- clctn[map_lgl(search_res, ~ length(.x) >=1 )]
+names(clctn_slct)
+
+```
+
+Having limited the collection to those tables with the information, we can loop over these pulling the relevant rows and columns
+
+```{r multipleconcepts2, message = FALSE}
+map(clctn_slct, function(each_tbl){
+  res <- SearchConcepts(each_tbl, cutext = "Placebo")
+res_r_c <- GetDataRowsCols(each_tbl, res)
+mydf <- ConvertData(each_tbl)
+mydf %>% 
+  semi_join(res_r_c) %>% 
+  slice(1)
+})
+```
+
+## Mapping from data to terminology
+
+We can of course also map in the other direction, from data to terminology.
+
+```{r getcuis}
+ConvertData(clctn$TID12078) %>% slice(17)
+GetCuis(clctn$TID12078, row = 12, col = 2)
+```
+
+
+
+# Detail on `concMapper` and `posiMapper`
+
+The following is only for those interested in more detail on how `concMapper` and `posiMapper` work. `concMapper` contains each original text label and its index. Since this was created in javascript, the indexing starts at zero rather than at one (R is unusual in starting its indexing at one). The following shows the first 6 items in the `concmapper` list for one of the tables.
+
+```{r concmapper}
+clctn$TID12095$concMapper %>% head()
+```
+
+`posiMapper` is more complex, it contains each each original text label and its index. Since this was created in javascript, the indexing starts at zero rather than at one (R is unusual in starting its indexing at one).
+
+The posiMapper list has one element for each column at the highest level.
+
+```{r posimapper}
+a <- clctn$TID12095$posiMapper
+names(a)
+```
+
+Within each column there is an entry for each row.
+
+```{r posimapper_r}
+length(a[[1]])
+```
+
+For each of these there is an entry for each text label corresponding to the terminology labelling.
+
+```{r posimapper_rc}
+a$`1`$`2`$`Sex (m/f)`
+a$`1`$`2`$`Neostigmine (n = 40)`
+```
+
+If we examine the data and terminology for this row and column we can see how these lists allow us to map across between terminology and data.
+
+```{r posimapper_eg}
+ConvertData(clctn$TID12095) %>% filter(col == 1, row == 2)
+ConvertTerminology(clctn$TID12095)  %>% slice(c(1, 40)+1)
+```
