@@ -14,23 +14,25 @@ source("restructuring.R")
 
 # tldr
 
-The functions in [restructuring.R](/restructuring.R) are designed to help you work with the json outputs from TableTidier.
+**R user?** The functions in [restructuring.R](/restructuring.R) are designed to help you work with the json outputs from TableTidier.
+
+**Not an R user?** If you are not an R user, you can convert the json collection files into a variety of formats in a [shiny app we have put together](https://ihwph-hehta.shinyapps.io/TableTidierOutputsShiny/). The Shiny app does not have the ability to map between terminology and data. For that you will need to use functions below.
 
 # Reason for using json
 
-We used json because it allows more flexible data structures than do flat files such as comma-separated value files (CSV) or tab-delimited files, while conversion into flat files is reasonably straightforward using R packages (or equivalents in other software). If you are familiar with lists in R, you can think of json files as nested lists.
+We used json because it allows more flexible data structures than do flat files such as comma-separated value files (CSV) or tab-delimited files. At the same time, json files can be readily  converted into flat files (or dataframes/tables) reasonably straightforwardly using R packages (or their equivalents in other software). If you are familiar with lists in R, you can think of json files as nested lists stored in text files.
 
-The raw json files are difficult for a human to read. For example the first 200 characters of the json file for a collection looks like this.
+Although json fils can be opened in a standard text editor (eg notepad) these are difficult for a human to read. For example the first 200 characters of the json file for a collection looks like this.
 
 ```{r rawjson}
 read_lines("collection_132_all.json") %>% str_sub(1,200)
 ```
 
-It looks a little better in a text editor with json support.
+However, it looks a little better in a text editor with json support.
 
 ![Snapshot of collection using a json text editor](json_image_text.png)
 
-Moreover, if you paste a json file such as "collection_123_all.json" into json viewer (just google to find one) you can see the list structure quite clearly. For our json files, the highest level of structure is each table. Within each table there are sections for information, notes, data and terminology. There are also objects which allow us to map between data and terminology.
+It looks better still if you paste a json file such as "collection_123_all.json" into json viewer (just google to find one). IN the snapshot below you can see the list structure quite clearly. For our json files, the highest level of structure is each table. Within each table there are sections for information, notes, data and terminology. There are also objects which allow us to map between data and terminology.
 
 ![Snapshot of collection using a json viewer](json_image.png)
 
@@ -68,13 +70,13 @@ names(clctn$TID12094)
 The "information" fields were printed when we read in the collection. You can also access these as a dataframe using the function `ConvertInfo`.
 
 ```{r convertinfo}
-ConvertInfo(clctn)
+knitr::kable(ConvertInfo(clctn))
 ```
 
 Finally, at the collection level it is also useful to extract annotations into a dataframe.
 
 ```{r concertnotes}
-ConvertNotes(clctn)
+knitr::kable(ConvertNotes(clctn))
 ```
 
 # Extracting data and terminology
@@ -82,12 +84,11 @@ ConvertNotes(clctn)
 For extracting data and terminology into more usable R objects it makes sense to do so for individual tables as well as for collections. We can extract data for single tables thus.
 
 ```{r convertdata}
-# print first 6 rows only
-ConvertData(clctn$TID12095) %>% 
-  head()
+# Print first 6 rows only
+knitr::kable(ConvertData(clctn$TID12095) %>% head())
 ```
 
-We can also extract data for the whole collections at once using `map` (or if preferred base `R` can use `lapply` ).
+We can also extract data for the whole collection at once using `map` (or if preferred base `R` can use `lapply` ).
 
 ```{r convertdatawhole}
 # print first row only
@@ -98,8 +99,8 @@ We can extract terminology similarly, both for a single table
 
 ```{r convertterminology}
 # print first 6 rows only
-ConvertTerminology(clctn$TID12095) %>% 
-  head()
+knitr::kable(ConvertTerminology(clctn$TID12095) %>% 
+  head())
 ```
 
 and for multiple tables. Since terminology tables are always in the same format, it often makes sense to bind these into a single table after extracting them.
@@ -108,12 +109,15 @@ and for multiple tables. Since terminology tables are always in the same format,
 # print first 6 rows
 map(clctn, ~ ConvertTerminology(.x)) %>% 
   bind_rows(.id = "tid") %>% 
-  slice(1:6)
+  slice(1:6) %>% 
+  knitr::kable()
 ```
 
 # Mapping between data and terminology
 
-As well as allowing us to nest tables within collections, one of the main motivations for using json files was to preserve the relationship between the data and the terminology. This is done via the `concMapper` and `posiMapper` objects. To simplify this process we have provided the helper functions SearchConcepts, GetCuis and GetDataRowsCols. First we describe how to use these. Next, for those interested we explain the structures in more detail.
+As well as allowing us to nest tables within collections, one of the main motivations for using json files was to preserve the relationship between the data and the terminology. One might want to do so in order to pull all the data related to a given variable.
+
+Lookups between data and terminology are provided via the `concMapper` and `posiMapper` list objects. To simplify their use we have provided the helper functions SearchConcepts, GetCuis and GetDataRowsCols. First we describe how to use these functions. Subsequently, for those interested we explain the structures of `concMapper` and `posiMapper` in more detail.
 
 ## Approach using SearchConcepts, GetCuis and GetDataRowsCols
 
@@ -121,7 +125,7 @@ We simplify mapping between terminology and data using the functions SearchConce
 
 First we search for concepts with text or a concept ID we are interested in. It will often make sense to do this after browsing the terminology tables created by `ConvertTerminology` or looking at the tables on TableTidier itself. Assuming we have an idea of what concepts were are intersted in we can search. We can search either using a concept ID or string.
 
-First we can search for a string, in this case age. The search is a regular expression search so is by default case sensitive.
+First we can search for a string, in this case blood pressure. The search is a regular expression search so is by default case sensitive.
 
 ```{r showsearch}
 res <- SearchConcepts(clctn$TID12078, cutext = "pressure")
@@ -139,7 +143,8 @@ Next we can use this number to identify which original rows and columns the conc
 
 ```{r showrc}
 res_r_c <- GetDataRowsCols(clctn$TID12078, res)
-res_r_c
+res_r_c %>% 
+  knitr::kable()
 ```
 
 Finally, we can obtain the relevant data by joining the above table to the data table by rows and columns.
@@ -147,12 +152,13 @@ Finally, we can obtain the relevant data by joining the above table to the data 
 ```{r getdata}
 mydf <- ConvertData(clctn$TID12078)
 mydf %>% 
-  semi_join(res_r_c)
+  semi_join(res_r_c) %>% 
+  knitr::kable()
 ```
 
 ## Mapping between data and terminology for multiple tables
 
-If comfortable using `map` or `lapply`, it is also straightforward to pull multiple concepts at once.
+If comfortable using `map` or `lapply`, it is also straightforward to pull multiple tables at once.
 
 ```{r multipleconcepts}
 search_res <- map(clctn, function(each_tbl){
@@ -179,14 +185,17 @@ mydf %>%
 
 ## Mapping from data to terminology
 
-We can of course also map in the other direction, from data to terminology.
+We can of course also map in the other direction, from data to terminology. First getting the relevant row and column.
 
-```{r getcuis}
-ConvertData(clctn$TID12078) %>% slice(17)
-GetCuis(clctn$TID12078, row = 12, col = 2)
+```{r getcuis1}
+ConvertData(clctn$TID12078) %>% slice(17) %>% knitr::kable()
 ```
 
+Then viewing the concepts for the row and column.
 
+```{r getcuis2}
+GetCuis(clctn$TID12078, row = 12, col = 2) %>% knitr::kable()
+```
 
 # Detail on `concMapper` and `posiMapper`
 
@@ -221,6 +230,16 @@ a$`1`$`2`$`Neostigmine (n = 40)`
 If we examine the data and terminology for this row and column we can see how these lists allow us to map across between terminology and data.
 
 ```{r posimapper_eg}
-ConvertData(clctn$TID12095) %>% filter(col == 1, row == 2)
-ConvertTerminology(clctn$TID12095)  %>% slice(c(1, 40)+1)
+ConvertData(clctn$TID12095) %>% filter(col == 1, row == 2) %>% 
+  knitr::kable()
+ConvertTerminology(clctn$TID12095)  %>% slice(c(1, 40)+1) %>% 
+  knitr::kable()
 ```
+
+# Updates
+
+TableTidier is evolving in response to user feedback. As such, and to add functionality the code in this repository is likely to change too. Therefore, if using these functions with TableTidier it is worth storing both your collection json files and these R functions at the timepoint of your succesful analysis. This will help with reproducibility. Since both the json collection and [restructuring.R](/restructuring.R) are text files, it is straightforward to store both using git-based version control. 
+
+# Suggestions and contributions
+
+If you would like to make a contribution to this repository (or TableTidier itself) please raise an issue. If anyone has written equivalent functions in Python, these would be particularly welcome.

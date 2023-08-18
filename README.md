@@ -4,19 +4,28 @@ Working with tabletidier outputs
 
 # tldr
 
-The functions in [restructuring.R](/restructuring.R) are designed to
-help you work with the json outputs from TableTidier.
+**R user?** The functions in [restructuring.R](/restructuring.R) are
+designed to help you work with the json outputs from TableTidier.
+
+**Not an R user?** If you are not an R user, you can convert the json
+collection files into a variety of formats in a [shiny app we have put
+together](https://ihwph-hehta.shinyapps.io/TableTidierOutputsShiny/).
+The Shiny app does not have the ability to map between terminology and
+data. For that you will need to use functions below.
 
 # Reason for using json
 
 We used json because it allows more flexible data structures than do
 flat files such as comma-separated value files (CSV) or tab-delimited
-files, while conversion into flat files is reasonably straightforward
-using R packages (or equivalents in other software). If you are familiar
-with lists in R, you can think of json files as nested lists.
+files. At the same time, json files can be readily converted into flat
+files (or dataframes/tables) reasonably straightforwardly using R
+packages (or their equivalents in other software). If you are familiar
+with lists in R, you can think of json files as nested lists stored in
+text files.
 
-The raw json files are difficult for a human to read. For example the
-first 200 characters of the json file for a collection looks like this.
+Although json fils can be opened in a standard text editor (eg notepad)
+these are difficult for a human to read. For example the first 200
+characters of the json file for a collection looks like this.
 
 ``` r
 read_lines("collection_132_all.json") %>% str_sub(1,200)
@@ -24,7 +33,7 @@ read_lines("collection_132_all.json") %>% str_sub(1,200)
 
     ## [1] "{\"selected_results\":[{\"tid\":12078,\"docid\":\"NCT03643965.html\",\"page\":1,\"collection_id\":132,\"doi\":\"https://doi.org/10.1016/S0140-6736(23)01554-4\",\"pmid\":\"\",\"url\":\"\",\"annotations\":{\"notes\":\"\",\"tableType\""
 
-It looks a little better in a text editor with json support.
+However, it looks a little better in a text editor with json support.
 
 <figure>
 <img src="json_image_text.png"
@@ -33,12 +42,13 @@ alt="Snapshot of collection using a json text editor" />
 editor</figcaption>
 </figure>
 
-Moreover, if you paste a json file such as “collection_123_all.json”
-into json viewer (just google to find one) you can see the list
-structure quite clearly. For our json files, the highest level of
-structure is each table. Within each table there are sections for
-information, notes, data and terminology. There are also objects which
-allow us to map between data and terminology.
+It looks better still if you paste a json file such as
+“collection_123_all.json” into json viewer (just google to find one). IN
+the snapshot below you can see the list structure quite clearly. For our
+json files, the highest level of structure is each table. Within each
+table there are sections for information, notes, data and terminology.
+There are also objects which allow us to map between data and
+terminology.
 
 <figure>
 <img src="json_image.png"
@@ -114,37 +124,35 @@ You can also access these as a dataframe using the function
 `ConvertInfo`.
 
 ``` r
-ConvertInfo(clctn)
+knitr::kable(ConvertInfo(clctn))
 ```
 
-    ## # A tibble: 7 × 7
-    ##     tid docid             page collection_id doi                     pmid  url  
-    ##   <int> <chr>            <int>         <int> <chr>                   <chr> <chr>
-    ## 1 12094 35241135.html        1           132 ""                      ""    ""   
-    ## 2 12095 35241135.html        2           132 "10.1186/s13054-022-03… "352… "htt…
-    ## 3 12096 35241135.html        4           132 ""                      "352… ""   
-    ## 4 12097 35241135.html        3           132 ""                      "352… ""   
-    ## 5 12078 NCT03643965.html     1           132 "https://doi.org/10.10… ""    ""   
-    ## 6 12079 NCT03643965.html     2           132 "https://doi.org/10.10… ""    ""   
-    ## 7 12080 NCT03643965.html     3           132 "https://doi.org/10.10… ""    ""
+|   tid | docid            | page | collection_id | doi                                             | pmid     | url                                                     |
+|------:|:-----------------|-----:|--------------:|:------------------------------------------------|:---------|:--------------------------------------------------------|
+| 12094 | 35241135.html    |    1 |           132 |                                                 |          |                                                         |
+| 12095 | 35241135.html    |    2 |           132 | 10.1186/s13054-022-03922-4                      | 35241135 | <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8892692/> |
+| 12096 | 35241135.html    |    4 |           132 |                                                 | 35241135 |                                                         |
+| 12097 | 35241135.html    |    3 |           132 |                                                 | 35241135 |                                                         |
+| 12078 | NCT03643965.html |    1 |           132 | <https://doi.org/10.1016/S0140-6736(23)01554-4> |          |                                                         |
+| 12079 | NCT03643965.html |    2 |           132 | <https://doi.org/10.1016/S0140-6736(23)01554-4> |          |                                                         |
+| 12080 | NCT03643965.html |    3 |           132 | <https://doi.org/10.1016/S0140-6736(23)01554-4> |          |                                                         |
 
 Finally, at the collection level it is also useful to extract
 annotations into a dataframe.
 
 ``` r
-ConvertNotes(clctn)
+knitr::kable(ConvertNotes(clctn))
 ```
 
-    ## # A tibble: 7 × 4
-    ##   tid      notes tableType        completion
-    ##   <chr>    <chr> <chr>            <chr>     
-    ## 1 TID12094 ""    ""               ""        
-    ## 2 TID12095 ""    "baseline_table" ""        
-    ## 3 TID12096 ""    "results_table"  ""        
-    ## 4 TID12097 ""    "results_table"  ""        
-    ## 5 TID12078 ""    "baseline_table" ""        
-    ## 6 TID12079 ""    "results_table"  ""        
-    ## 7 TID12080 ""    "results_table"  ""
+| tid      | notes | tableType      | completion |
+|:---------|:------|:---------------|:-----------|
+| TID12094 |       |                |            |
+| TID12095 |       | baseline_table |            |
+| TID12096 |       | results_table  |            |
+| TID12097 |       | results_table  |            |
+| TID12078 |       | baseline_table |            |
+| TID12079 |       | results_table  |            |
+| TID12080 |       | results_table  |            |
 
 # Extracting data and terminology
 
@@ -153,20 +161,20 @@ sense to do so for individual tables as well as for collections. We can
 extract data for single tables thus.
 
 ``` r
-# print first 6 rows only
-ConvertData(clctn$TID12095) %>% 
-  head()
+# Print first 6 rows only
+knitr::kable(ConvertData(clctn$TID12095) %>% head())
 ```
 
-    ##   characteristics@1 characteristics@2                arms@1 col row   value
-    ## 1                          Age (year)  Neostigmine (n = 40)   1   1 46 ± 13
-    ## 2                          Age (year) Conventional (n = 40)   2   1 49 ± 14
-    ## 3                          Age (year)               P value   3   1    0.85
-    ## 4                           Sex (m/f)  Neostigmine (n = 40)   1   2   27/13
-    ## 5                           Sex (m/f) Conventional (n = 40)   2   2    34/6
-    ## 6                           Sex (m/f)               P value   3   2    0.11
+| <characteristics@1> | <characteristics@2> | <arms@1>              | col | row | value   |
+|:--------------------|:--------------------|:----------------------|----:|----:|:--------|
+|                     | Age (year)          | Neostigmine (n = 40)  |   1 |   1 | 46 ± 13 |
+|                     | Age (year)          | Conventional (n = 40) |   2 |   1 | 49 ± 14 |
+|                     | Age (year)          | P value               |   3 |   1 | 0.85    |
+|                     | Sex (m/f)           | Neostigmine (n = 40)  |   1 |   2 | 27/13   |
+|                     | Sex (m/f)           | Conventional (n = 40) |   2 |   2 | 34/6    |
+|                     | Sex (m/f)           | P value               |   3 |   2 | 0.11    |
 
-We can also extract data for the whole collections at once using `map`
+We can also extract data for the whole collection at once using `map`
 (or if preferred base `R` can use `lapply` ).
 
 ``` r
@@ -220,31 +228,18 @@ We can extract terminology similarly, both for a single table
 
 ``` r
 # print first 6 rows only
-ConvertTerminology(clctn$TID12095) %>% 
-  head()
+knitr::kable(ConvertTerminology(clctn$TID12095) %>% 
+  head())
 ```
 
-    ##   concept_source concept_root                 concept
-    ## 1                                          Age (year)
-    ## 2                                           Sex (m/f)
-    ## 3                                                 ACS
-    ## 4                                      Use of opioids
-    ## 5                                    Colonic ileusc,d
-    ## 6                             24 h of defecation (mL)
-    ##                                                                               cuis
-    ## 1                                                       C0001779;C0439234;C0439508
-    ## 2                   C0009253;C0036864;C0079399;C0804628;C1314687;C1522384;C1306057
-    ## 3                                                       C0742343;C4318612;C0948089
-    ## 4                                                       C1524063;C0002772;C0242402
-    ## 5                                              C0073187;C0332173;C4484261;C0009368
-    ## 6 C0439526;C1705224;C3887665;C0033727;C0369286;C0441932;C0564385;C4528284;C0011135
-    ##   qualifiers cuis_selected qualifiers_selected istitle labeller
-    ## 1                 C0001779                       FALSE       NA
-    ## 2                 C0079399                       FALSE       NA
-    ## 3                 C0948089                       FALSE       NA
-    ## 4                 C0002772                       FALSE       NA
-    ## 5                 C0009368                       FALSE       NA
-    ## 6                 C0011135                       FALSE       NA
+| concept_source | concept_root | concept                 | cuis                                                                             | qualifiers | cuis_selected | qualifiers_selected | istitle | labeller |
+|:---------------|:-------------|:------------------------|:---------------------------------------------------------------------------------|:-----------|:--------------|:--------------------|:--------|:---------|
+|                |              | Age (year)              | C0001779;C0439234;C0439508                                                       |            | C0001779      |                     | FALSE   | NA       |
+|                |              | Sex (m/f)               | C0009253;C0036864;C0079399;C0804628;C1314687;C1522384;C1306057                   |            | C0079399      |                     | FALSE   | NA       |
+|                |              | ACS                     | C0742343;C4318612;C0948089                                                       |            | C0948089      |                     | FALSE   | NA       |
+|                |              | Use of opioids          | C1524063;C0002772;C0242402                                                       |            | C0002772      |                     | FALSE   | NA       |
+|                |              | Colonic ileusc,d        | C0073187;C0332173;C4484261;C0009368                                              |            | C0009368      |                     | FALSE   | NA       |
+|                |              | 24 h of defecation (mL) | C0439526;C1705224;C3887665;C0033727;C0369286;C0441932;C0564385;C4528284;C0011135 |            | C0011135      |                     | FALSE   | NA       |
 
 and for multiple tables. Since terminology tables are always in the same
 format, it often makes sense to bind these into a single table after
@@ -254,40 +249,32 @@ extracting them.
 # print first 6 rows
 map(clctn, ~ ConvertTerminology(.x)) %>% 
   bind_rows(.id = "tid") %>% 
-  slice(1:6)
+  slice(1:6) %>% 
+  knitr::kable()
 ```
 
-    ##        tid concept_source concept_root                 concept
-    ## 1 TID12095                                          Age (year)
-    ## 2 TID12095                                           Sex (m/f)
-    ## 3 TID12095                                                 ACS
-    ## 4 TID12095                                      Use of opioids
-    ## 5 TID12095                                    Colonic ileusc,d
-    ## 6 TID12095                             24 h of defecation (mL)
-    ##                                                                               cuis
-    ## 1                                                       C0001779;C0439234;C0439508
-    ## 2                   C0009253;C0036864;C0079399;C0804628;C1314687;C1522384;C1306057
-    ## 3                                                       C0742343;C4318612;C0948089
-    ## 4                                                       C1524063;C0002772;C0242402
-    ## 5                                              C0073187;C0332173;C4484261;C0009368
-    ## 6 C0439526;C1705224;C3887665;C0033727;C0369286;C0441932;C0564385;C4528284;C0011135
-    ##   qualifiers cuis_selected qualifiers_selected istitle labeller
-    ## 1                 C0001779                       FALSE       NA
-    ## 2                 C0079399                       FALSE       NA
-    ## 3                 C0948089                       FALSE       NA
-    ## 4                 C0002772                       FALSE       NA
-    ## 5                 C0009368                       FALSE       NA
-    ## 6                 C0011135                       FALSE       NA
+| tid      | concept_source | concept_root | concept                 | cuis                                                                             | qualifiers | cuis_selected | qualifiers_selected | istitle | labeller |
+|:---------|:---------------|:-------------|:------------------------|:---------------------------------------------------------------------------------|:-----------|:--------------|:--------------------|:--------|:---------|
+| TID12095 |                |              | Age (year)              | C0001779;C0439234;C0439508                                                       |            | C0001779      |                     | FALSE   | NA       |
+| TID12095 |                |              | Sex (m/f)               | C0009253;C0036864;C0079399;C0804628;C1314687;C1522384;C1306057                   |            | C0079399      |                     | FALSE   | NA       |
+| TID12095 |                |              | ACS                     | C0742343;C4318612;C0948089                                                       |            | C0948089      |                     | FALSE   | NA       |
+| TID12095 |                |              | Use of opioids          | C1524063;C0002772;C0242402                                                       |            | C0002772      |                     | FALSE   | NA       |
+| TID12095 |                |              | Colonic ileusc,d        | C0073187;C0332173;C4484261;C0009368                                              |            | C0009368      |                     | FALSE   | NA       |
+| TID12095 |                |              | 24 h of defecation (mL) | C0439526;C1705224;C3887665;C0033727;C0369286;C0441932;C0564385;C4528284;C0011135 |            | C0011135      |                     | FALSE   | NA       |
 
 # Mapping between data and terminology
 
 As well as allowing us to nest tables within collections, one of the
 main motivations for using json files was to preserve the relationship
-between the data and the terminology. This is done via the `concMapper`
-and `posiMapper` objects. To simplify this process we have provided the
-helper functions SearchConcepts, GetCuis and GetDataRowsCols. First we
-describe how to use these. Next, for those interested we explain the
-structures in more detail.
+between the data and the terminology. One might want to do so in order
+to pull all the data related to a given variable.
+
+Lookups between data and terminology are provided via the `concMapper`
+and `posiMapper` list objects. To simplify their use we have provided
+the helper functions SearchConcepts, GetCuis and GetDataRowsCols. First
+we describe how to use these functions. Subsequently, for those
+interested we explain the structures of `concMapper` and `posiMapper` in
+more detail.
 
 ## Approach using SearchConcepts, GetCuis and GetDataRowsCols
 
@@ -301,8 +288,8 @@ TableTidier itself. Assuming we have an idea of what concepts were are
 intersted in we can search. We can search either using a concept ID or
 string.
 
-First we can search for a string, in this case age. The search is a
-regular expression search so is by default case sensitive.
+First we can search for a string, in this case blood pressure. The
+search is a regular expression search so is by default case sensitive.
 
 ``` r
 res <- SearchConcepts(clctn$TID12078, cutext = "pressure")
@@ -325,14 +312,16 @@ the concept relates to.
 
 ``` r
 res_r_c <- GetDataRowsCols(clctn$TID12078, res)
-res_r_c
+res_r_c %>% 
+  knitr::kable()
 ```
 
-    ##   col row                           text conceptrow
-    ## 1   2  12 Baseline blood pressure, mm Hg          5
-    ## 2   2  13 Baseline blood pressure, mm Hg          5
-    ## 3   3  12 Baseline blood pressure, mm Hg          5
-    ## 4   3  13 Baseline blood pressure, mm Hg          5
+| col | row | text                           | conceptrow |
+|----:|----:|:-------------------------------|-----------:|
+|   2 |  12 | Baseline blood pressure, mm Hg |          5 |
+|   2 |  13 | Baseline blood pressure, mm Hg |          5 |
+|   3 |  12 | Baseline blood pressure, mm Hg |          5 |
+|   3 |  13 | Baseline blood pressure, mm Hg |          5 |
 
 Finally, we can obtain the relevant data by joining the above table to
 the data table by rows and columns.
@@ -340,26 +329,23 @@ the data table by rows and columns.
 ``` r
 mydf <- ConvertData(clctn$TID12078)
 mydf %>% 
-  semi_join(res_r_c)
+  semi_join(res_r_c) %>% 
+  knitr::kable()
 ```
 
     ## Joining with `by = join_by(col, row)`
 
-    ##                      arms@1              characteristics@1 characteristics@2
-    ## 1 Nefecon 16 mg/day (n=182) Baseline blood pressure, mm Hg          Systolic
-    ## 2           Placebo (n=182) Baseline blood pressure, mm Hg          Systolic
-    ## 3 Nefecon 16 mg/day (n=182) Baseline blood pressure, mm Hg         Diastolic
-    ## 4           Placebo (n=182) Baseline blood pressure, mm Hg         Diastolic
-    ##   col row         value
-    ## 1   2  12 126 (121–132)
-    ## 2   3  12 124 (117–130)
-    ## 3   2  13    79 (76–84)
-    ## 4   3  13    79 (74–84)
+| <arms@1>                  | <characteristics@1>            | <characteristics@2> | col | row | value         |
+|:--------------------------|:-------------------------------|:--------------------|----:|----:|:--------------|
+| Nefecon 16 mg/day (n=182) | Baseline blood pressure, mm Hg | Systolic            |   2 |  12 | 126 (121–132) |
+| Placebo (n=182)           | Baseline blood pressure, mm Hg | Systolic            |   3 |  12 | 124 (117–130) |
+| Nefecon 16 mg/day (n=182) | Baseline blood pressure, mm Hg | Diastolic           |   2 |  13 | 79 (76–84)    |
+| Placebo (n=182)           | Baseline blood pressure, mm Hg | Diastolic           |   3 |  13 | 79 (74–84)    |
 
 ## Mapping between data and terminology for multiple tables
 
 If comfortable using `map` or `lapply`, it is also straightforward to
-pull multiple concepts at once.
+pull multiple tables at once.
 
 ``` r
 search_res <- map(clctn, function(each_tbl){
@@ -405,19 +391,20 @@ mydf %>%
 ## Mapping from data to terminology
 
 We can of course also map in the other direction, from data to
-terminology.
+terminology. First getting the relevant row and column.
 
 ``` r
-ConvertData(clctn$TID12078) %>% slice(17)
+ConvertData(clctn$TID12078) %>% slice(17) %>% knitr::kable()
 ```
 
-    ##                      arms@1              characteristics@1 characteristics@2
-    ## 1 Nefecon 16 mg/day (n=182) Baseline blood pressure, mm Hg          Systolic
-    ##   col row         value
-    ## 1   2  12 126 (121–132)
+| <arms@1>                  | <characteristics@1>            | <characteristics@2> | col | row | value         |
+|:--------------------------|:-------------------------------|:--------------------|----:|----:|:--------------|
+| Nefecon 16 mg/day (n=182) | Baseline blood pressure, mm Hg | Systolic            |   2 |  12 | 126 (121–132) |
+
+Then viewing the concepts for the row and column.
 
 ``` r
-GetCuis(clctn$TID12078, row = 12, col = 2)
+GetCuis(clctn$TID12078, row = 12, col = 2) %>% knitr::kable()
 ```
 
     ##                       arms@1              characteristics@1 characteristics@2
@@ -433,18 +420,11 @@ GetCuis(clctn$TID12078, row = 12, col = 2)
     ## $Systolic
     ## [1] 25
 
-    ##    concept_source concept_root                        concept
-    ## 1                                   Nefecon 16 mg/day (n=182)
-    ## 6                              Baseline blood pressure, mm Hg
-    ## 26                                                   Systolic
-    ##                                                                                         cuis
-    ## 1                                                        C0369718;C0441922;C0439422;C0054201
-    ## 6  C0439475;C0443150;C0005823;C1271104;C1272641;C0005767;C0005768;C0229664;C0168634;C1442488
-    ## 26                                                                         C0039155;C4274438
-    ##    qualifiers     cuis_selected qualifiers_selected istitle labeller
-    ## 1                      C0054201                       FALSE       NA
-    ## 6             C0439475;C0005823                       FALSE       NA
-    ## 26            C0039155;C4274438                       FALSE       NA
+|     | concept_source | concept_root | concept                        | cuis                                                                                      | qualifiers | cuis_selected     | qualifiers_selected | istitle | labeller |
+|:----|:---------------|:-------------|:-------------------------------|:------------------------------------------------------------------------------------------|:-----------|:------------------|:--------------------|:--------|:---------|
+| 1   |                |              | Nefecon 16 mg/day (n=182)      | C0369718;C0441922;C0439422;C0054201                                                       |            | C0054201          |                     | FALSE   | NA       |
+| 6   |                |              | Baseline blood pressure, mm Hg | C0439475;C0443150;C0005823;C1271104;C1272641;C0005767;C0005768;C0229664;C0168634;C1442488 |            | C0439475;C0005823 |                     | FALSE   | NA       |
+| 26  |                |              | Systolic                       | C0039155;C4274438                                                                         |            | C0039155;C4274438 |                     | FALSE   | NA       |
 
 # Detail on `concMapper` and `posiMapper`
 
@@ -519,22 +499,37 @@ If we examine the data and terminology for this row and column we can
 see how these lists allow us to map across between terminology and data.
 
 ``` r
-ConvertData(clctn$TID12095) %>% filter(col == 1, row == 2)
+ConvertData(clctn$TID12095) %>% filter(col == 1, row == 2) %>% 
+  knitr::kable()
 ```
 
-    ##   characteristics@1 characteristics@2               arms@1 col row value
-    ## 1                           Sex (m/f) Neostigmine (n = 40)   1   2 27/13
+| <characteristics@1> | <characteristics@2> | <arms@1>             | col | row | value |
+|:--------------------|:--------------------|:---------------------|----:|----:|:------|
+|                     | Sex (m/f)           | Neostigmine (n = 40) |   1 |   2 | 27/13 |
 
 ``` r
-ConvertTerminology(clctn$TID12095)  %>% slice(c(1, 40)+1)
+ConvertTerminology(clctn$TID12095)  %>% slice(c(1, 40)+1) %>% 
+  knitr::kable()
 ```
 
-    ##   concept_source concept_root              concept
-    ## 1                                        Sex (m/f)
-    ## 2                             Neostigmine (n = 40)
-    ##                                                             cuis qualifiers
-    ## 1 C0009253;C0036864;C0079399;C0804628;C1314687;C1522384;C1306057           
-    ## 2                   C0027679;C0369718;C0441922;C0439509;C3842587           
-    ##   cuis_selected qualifiers_selected istitle labeller
-    ## 1      C0079399                       FALSE       NA
-    ## 2      C0027679                       FALSE       NA
+| concept_source | concept_root | concept              | cuis                                                           | qualifiers | cuis_selected | qualifiers_selected | istitle | labeller |
+|:---------------|:-------------|:---------------------|:---------------------------------------------------------------|:-----------|:--------------|:--------------------|:--------|:---------|
+|                |              | Sex (m/f)            | C0009253;C0036864;C0079399;C0804628;C1314687;C1522384;C1306057 |            | C0079399      |                     | FALSE   | NA       |
+|                |              | Neostigmine (n = 40) | C0027679;C0369718;C0441922;C0439509;C3842587                   |            | C0027679      |                     | FALSE   | NA       |
+
+# Updates
+
+TableTidier is evolving in response to user feedback. As such, and to
+add functionality the code in this repository is likely to change too.
+Therefore, if using these functions with TableTidier it is worth storing
+both your collection json files and these R functions at the timepoint
+of your succesful analysis. This will help with reproducibility. Since
+both the json collection and [restructuring.R](/restructuring.R) are
+text files, it is straightforward to store both using git-based version
+control.
+
+# Suggestions and contributions
+
+If you would like to make a contribution to this repository (or
+TableTidier itself) please raise an issue. If anyone has written
+equivalent functions in Python, these would be particularly welcome.
