@@ -13,6 +13,13 @@ together](https://ihwph-hehta.shinyapps.io/TableTidierOutputsShiny/).
 The Shiny app does not have the ability to map between terminology and
 data. For that you will need to use functions below.
 
+# Conventions in this document
+
+To distinguish between tables in TableTidier and data tables in `R` we
+refered to the collection of outputs for a given TableTidier table as a
+*table object* and refer to data tables in R (as is conventional in the
+R literature) dataframes.
+
 # Reason for using json
 
 We used json because it allows more flexible data structures than do
@@ -43,12 +50,12 @@ editor</figcaption>
 </figure>
 
 It looks better still if you paste a json file such as
-“collection_123_all.json” into json viewer (just google to find one). IN
+“collection_123_all.json” into json viewer (just google to find one). In
 the snapshot below you can see the list structure quite clearly. For our
-json files, the highest level of structure is each table. Within each
-table there are sections for information, notes, data and terminology.
-There are also objects which allow us to map between data and
-terminology.
+json files, the highest level of structure is each table object. Within
+each table object there are sections for information, notes, data and
+terminology. There are also objects which allow us to map between data
+and terminology.
 
 <figure>
 <img src="json_image.png"
@@ -71,7 +78,7 @@ TableTidier json files. The following demonstrates their usage.
 # Reading in collections
 
 Collections can be read in as follows. The whole file is read in as a
-list object and the information for each table is printed.
+list object and the information for each table object is printed.
 
 ``` r
 clctn <- ReadCollection("collection_132_all_additional.json")
@@ -98,7 +105,7 @@ class(clctn)
     ## [1] "list"
 
 At the top level of this particular collection there are 6 tables, named
-by the table IDs (TIDs).
+by the table object IDs (TIDs).
 
 ``` r
 names(clctn)
@@ -106,10 +113,10 @@ names(clctn)
 
     ## [1] "TID12094" "TID12095" "TID12096" "TID12097" "TID12078" "TID12079" "TID12080"
 
-Within a single table we have table information (tid, docid, page,
-collection_id, doi, pmid and url), annotations, data (tableResults),
-terminology (metadata) and list objects to allow mapping between the
-data and terminology (concMapper and posiMapper).
+Within a single table object we have table object information (tid,
+docid, page, collection_id, doi, pmid and url), annotations, data
+(tableResults), terminology (metadata) and list objects to allow mapping
+between the data and terminology (concMapper and posiMapper).
 
 ``` r
 names(clctn$TID12094)
@@ -154,11 +161,11 @@ knitr::kable(ConvertNotes(clctn))
 | TID12079 |       | results_table  |            |
 | TID12080 |       | results_table  |            |
 
-# Extracting data and terminology
+# Extracting data
 
-For extracting data and terminology into more usable R objects it makes
-sense to do so for individual tables as well as for collections. We can
-extract data for single tables thus.
+For extracting data into more usable R objects it makes sense to do so
+for individual tables as well as for collections. We can extract data
+for single tables thus.
 
 ``` r
 # Print first 6 rows only
@@ -224,7 +231,10 @@ map(clctn, ~ ConvertData(.x) %>% head(1))
     ##                       characteristics@1 characteristics@2 col row     value
     ## 1 All treatment-emergent adverse events                     2   2 159 (87%)
 
-We can extract terminology similarly, both for a single table
+# Extracting terminology
+
+As with data, it makes sense to extract terminology both for a single
+table object
 
 ``` r
 # print first 6 rows only
@@ -241,9 +251,9 @@ knitr::kable(ConvertTerminology(clctn$TID12095) %>%
 |                |              | Colonic ileusc,d        | C0073187;C0332173;C4484261;C0009368                                              |            | C0009368      |                     | FALSE   | NA       |
 |                |              | 24 h of defecation (mL) | C0439526;C1705224;C3887665;C0033727;C0369286;C0441932;C0564385;C4528284;C0011135 |            | C0011135      |                     | FALSE   | NA       |
 
-and for multiple tables. Since terminology tables are always in the same
-format, it often makes sense to bind these into a single table after
-extracting them.
+and for a collection (or subset of a collection). Since terminology
+tables are always in the same format, it often makes sense to bind these
+into a single dataframe after extracting them.
 
 ``` r
 # print first 6 rows
@@ -262,6 +272,35 @@ map(clctn, ~ ConvertTerminology(.x)) %>%
 | TID12095 |                |              | Colonic ileusc,d        | C0073187;C0332173;C4484261;C0009368                                              |            | C0009368      |                     | FALSE   | NA       |
 | TID12095 |                |              | 24 h of defecation (mL) | C0439526;C1705224;C3887665;C0033727;C0369286;C0441932;C0564385;C4528284;C0011135 |            | C0011135      |                     | FALSE   | NA       |
 
+The functions in this repository show the concept IDs only. They do not
+pull information associated with concept IDs such as preferred terms,
+source databases etc from the [UMLS
+Metathesaurus](https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/index.html).
+The reason for this is that UMLS requires a (free) licence.
+
+If you want to obtain this information for the selected concept IDs you
+can use the [UMLS browser](https://uts.nlm.nih.gov/uts/umls/home).
+
+<figure>
+<img src="umls_shot.png" alt="UMLS browser screenshot" />
+<figcaption aria-hidden="true">UMLS browser screenshot</figcaption>
+</figure>
+
+If you want to obtain this information programmatically in R you can use
+the [rUMLS](https://github.com/mpancia/rUMLS) or
+[umlsr](https://gitlab.com/dkincaid/umlsr) packages both of [which are
+mentioned on the UMLS user contributions
+webpage](https://www.nlm.nih.gov/research/umls/implementation_resources/community/index.html)
+alongside code for other software. Both packages:-
+
+- use the UMLS API
+
+- require a UMLS log-in which is free, but which requires you to sign a
+  licence
+
+- allow you to log into your own UMLS account via a personal API key
+  (which is also free if you have a UMLS log in)
+
 # Mapping between data and terminology
 
 As well as allowing us to nest tables within collections, one of the
@@ -271,10 +310,33 @@ to pull all the data related to a given variable.
 
 Lookups between data and terminology are provided via the `concMapper`
 and `posiMapper` list objects. To simplify their use we have provided
-the helper functions SearchConcepts, GetCuis and GetDataRowsCols. First
-we describe how to use these functions. Subsequently, for those
-interested we explain the structures of `concMapper` and `posiMapper` in
-more detail.
+the helper functions `ConvertDataTerm,` `SearchConcepts`, `GetCuis` and
+`GetDataRowsCols`. First we describe how to use these functions.
+Subsequently, for those interested we explain the structures of
+`concMapper` and `posiMapper` in more detail.
+
+## Combining all terminology with data
+
+The simplest approach is to run the function `ConvertDataTerm`. This
+takes a table object and produces a dataframe with the data and
+additional column(s) with the selected UMLS concept IDs. It can map any
+columns from the terminology dataframe (the output produced by the
+`ConvertTerminology` function) to the data dataframe. It might make
+sense to first review the output of `ConvertData` and
+`ConvertTerminology` before running `ConvertDataTerm`.
+
+``` r
+ConvertDataTerm(clctn$TID12095) %>% head() %>% knitr::kable()
+```
+
+| <characteristics@1> | <characteristics@2> | <arms@1>              | col | row | value   | <characteristics@1>\_cuis_selected | <characteristics@2>\_cuis_selected | <arms@1>\_cuis_selected |
+|:--------------------|:--------------------|:----------------------|----:|----:|:--------|:-----------------------------------|:-----------------------------------|:------------------------|
+|                     | Age (year)          | Neostigmine (n = 40)  |   1 |   1 | 46 ± 13 | NA                                 | C0001779                           | C0027679                |
+|                     | Age (year)          | Conventional (n = 40) |   2 |   1 | 49 ± 14 | NA                                 | C0001779                           | C4553390                |
+|                     | Age (year)          | P value               |   3 |   1 | 0.85    | NA                                 | C0001779                           | C1709380                |
+|                     | Sex (m/f)           | Neostigmine (n = 40)  |   1 |   2 | 27/13   | NA                                 | C0079399                           | C0027679                |
+|                     | Sex (m/f)           | Conventional (n = 40) |   2 |   2 | 34/6    | NA                                 | C0079399                           | C4553390                |
+|                     | Sex (m/f)           | P value               |   3 |   2 | 0.11    | NA                                 | C0079399                           | C1709380                |
 
 ## Approach using SearchConcepts, GetCuis and GetDataRowsCols
 
@@ -323,8 +385,8 @@ res_r_c %>%
 |   3 |  12 | Baseline blood pressure, mm Hg |          5 |
 |   3 |  13 | Baseline blood pressure, mm Hg |          5 |
 
-Finally, we can obtain the relevant data by joining the above table to
-the data table by rows and columns.
+Finally, we can obtain the relevant data by joining the above dataframe
+to the data dataframe by rows and columns.
 
 ``` r
 mydf <- ConvertData(clctn$TID12078)

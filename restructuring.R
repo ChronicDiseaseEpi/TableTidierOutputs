@@ -17,8 +17,8 @@ ReadCollection <- function(collection_name) {
 }
 
 ## Pull terminology for a selected table into a dataframe
-ConvertTerminology <- function(x) {
-  jsonlite:::simplifyDataFrame(x$metadata, flatten = FALSE)
+ConvertTerminology <- function(mytbl) {
+  jsonlite:::simplifyDataFrame(mytbl$metadata, flatten = FALSE)
 }
 
 ## Pull data for a selected table into a dataframe
@@ -35,6 +35,33 @@ ConvertInfo <- function(collection) {
 ConvertNotes <- function(collection) {
   map(collection, ~ .x$annotations %>% as_tibble()) %>% 
     bind_rows(.id = "tid")
+}
+
+## Get CUI row
+GetCuisRows <- function(mytbl, rows, cols, chrctrs) {
+  res <- pmap_int(list(rows, cols, chrctrs),
+                  function(ro, co, ch){
+                    a <- mytbl$posiMapper[[as.character(co)]][[as.character(ro)]][[as.character(ch)]]
+                    if(is.null(a)) NA_integer_ else a
+                  })
+  res
+}
+
+## Pull data for a selected table into a dataframe along with selected terminology
+# can take a vector of columns want to pull across from terminology
+# default is cuis_selected
+ConvertDataTerm <- function(mytbl, term_info = "cuis_selected") {
+  mydf <- ConvertData(mytbl)
+  term <- ConvertTerminology(mytbl)
+    if (nrow(term) == 0L) return(mydf)
+    for(i in setdiff(names(mydf), 
+                     c("row", "col", "value"))) {
+        indx <- GetCuisRows(mytbl, mydf$row, mydf$col, mydf[[i]])
+        for(j in term_info){
+          mydf[, paste0(i, "_", j)] <- term[[j]][indx+1]
+        }
+    }
+    mydf
 }
 
 ## Get concept IDs for a selected table into for any set of rows and columns
@@ -73,6 +100,7 @@ GetDataRowsCols <- function(mytbl,
   a
 }
 
+
 ## Examples ----
 runexamples <- function() {
 # Two functions ReadCollection and ConvertInfo work at the collection level
@@ -94,7 +122,7 @@ ConvertNotes(clctn)
 ConvertTerminology(clctn$TID12078)
 
 ## Convert data into dataframe for an individual table or collection
-ConvertData(clctn$TID12078)
+a <- ConvertData(clctn$TID12078)
 
 ## Get the CUIs (concept IDs for a selected table for any given row and column)
 ConvertData(clctn$TID12078) %>% 

@@ -18,9 +18,13 @@ source("restructuring.R")
 
 **Not an R user?** If you are not an R user, you can convert the json collection files into a variety of formats in a [shiny app we have put together](https://ihwph-hehta.shinyapps.io/TableTidierOutputsShiny/). The Shiny app does not have the ability to map between terminology and data. For that you will need to use functions below.
 
+# Conventions in this document
+
+To distinguish between tables in TableTidier and data tables in `R` we refered to the collection of outputs for a given TableTidier table as a *table object* and refer to data tables in R (as is conventional in the R literature) dataframes.
+
 # Reason for using json
 
-We used json because it allows more flexible data structures than do flat files such as comma-separated value files (CSV) or tab-delimited files. At the same time, json files can be readily  converted into flat files (or dataframes/tables) reasonably straightforwardly using R packages (or their equivalents in other software). If you are familiar with lists in R, you can think of json files as nested lists stored in text files.
+We used json because it allows more flexible data structures than do flat files such as comma-separated value files (CSV) or tab-delimited files. At the same time, json files can be readily converted into flat files (or dataframes/tables) reasonably straightforwardly using R packages (or their equivalents in other software). If you are familiar with lists in R, you can think of json files as nested lists stored in text files.
 
 Although json fils can be opened in a standard text editor (eg notepad) these are difficult for a human to read. For example the first 200 characters of the json file for a collection looks like this.
 
@@ -32,7 +36,7 @@ However, it looks a little better in a text editor with json support.
 
 ![Snapshot of collection using a json text editor](json_image_text.png)
 
-It looks better still if you paste a json file such as "collection_123_all.json" into json viewer (just google to find one). IN the snapshot below you can see the list structure quite clearly. For our json files, the highest level of structure is each table. Within each table there are sections for information, notes, data and terminology. There are also objects which allow us to map between data and terminology.
+It looks better still if you paste a json file such as "collection_123_all.json" into json viewer (just google to find one). In the snapshot below you can see the list structure quite clearly. For our json files, the highest level of structure is each table object. Within each table object there are sections for information, notes, data and terminology. There are also objects which allow us to map between data and terminology.
 
 ![Snapshot of collection using a json viewer](json_image.png)
 
@@ -42,7 +46,7 @@ It is quite straightforward to convert these into R objects (nested lists) using
 
 # Reading in collections
 
-Collections can be read in as follows. The whole file is read in as a list object and the information for each table is printed.
+Collections can be read in as follows. The whole file is read in as a list object and the information for each table object is printed.
 
 ```{r readcollection}
 clctn <- ReadCollection("collection_132_all_additional.json")
@@ -55,13 +59,13 @@ class(clctn)
 
 ```
 
-At the top level of this particular collection there are 6 tables, named by the table IDs (TIDs).
+At the top level of this particular collection there are 6 tables, named by the table object IDs (TIDs).
 
 ```{r clcntlvl}
 names(clctn)
 ```
 
-Within a single table we have table information (tid, docid, page, collection_id, doi, pmid and url), annotations, data (tableResults), terminology (metadata) and list objects to allow mapping between the data and terminology (concMapper and posiMapper).
+Within a single table object we have table object information (tid, docid, page, collection_id, doi, pmid and url), annotations, data (tableResults), terminology (metadata) and list objects to allow mapping between the data and terminology (concMapper and posiMapper).
 
 ```{r tlblvl}
 names(clctn$TID12094)
@@ -79,9 +83,9 @@ Finally, at the collection level it is also useful to extract annotations into a
 knitr::kable(ConvertNotes(clctn))
 ```
 
-# Extracting data and terminology
+# Extracting data
 
-For extracting data and terminology into more usable R objects it makes sense to do so for individual tables as well as for collections. We can extract data for single tables thus.
+For extracting data into more usable R objects it makes sense to do so for individual tables as well as for collections. We can extract data for single tables thus.
 
 ```{r convertdata}
 # Print first 6 rows only
@@ -95,7 +99,9 @@ We can also extract data for the whole collection at once using `map` (or if pre
 map(clctn, ~ ConvertData(.x) %>% head(1))
 ```
 
-We can extract terminology similarly, both for a single table
+# Extracting terminology
+
+As with data, it makes sense to extract terminology both for a single table object
 
 ```{r convertterminology}
 # print first 6 rows only
@@ -103,7 +109,7 @@ knitr::kable(ConvertTerminology(clctn$TID12095) %>%
   head())
 ```
 
-and for multiple tables. Since terminology tables are always in the same format, it often makes sense to bind these into a single table after extracting them.
+and for a collection (or subset of a collection). Since terminology tables are always in the same format, it often makes sense to bind these into a single dataframe after extracting them.
 
 ```{r converttermwhole}
 # print first 6 rows
@@ -113,11 +119,33 @@ map(clctn, ~ ConvertTerminology(.x)) %>%
   knitr::kable()
 ```
 
+The functions in this repository show the concept IDs only. They do not pull information associated with concept IDs such as preferred terms, source databases etc from the [UMLS Metathesaurus](https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/index.html). The reason for this is that UMLS requires a (free) licence.
+
+If you want to obtain this information for the selected concept IDs you can use the [UMLS browser](https://uts.nlm.nih.gov/uts/umls/home).
+
+![UMLS browser screenshot](umls_shot.png)
+
+If you want to obtain this information programmatically in R you can use the [rUMLS](https://github.com/mpancia/rUMLS) or [umlsr](https://gitlab.com/dkincaid/umlsr) packages both of [which are mentioned on the UMLS user contributions webpage](https://www.nlm.nih.gov/research/umls/implementation_resources/community/index.html) alongside code for other software. Both packages:-
+
+-   use the UMLS API
+
+-   require a UMLS log-in which is free, but which requires you to sign a licence
+
+-   allow you to log into your own UMLS account via a personal API key (which is also free if you have a UMLS log in)
+
 # Mapping between data and terminology
 
 As well as allowing us to nest tables within collections, one of the main motivations for using json files was to preserve the relationship between the data and the terminology. One might want to do so in order to pull all the data related to a given variable.
 
-Lookups between data and terminology are provided via the `concMapper` and `posiMapper` list objects. To simplify their use we have provided the helper functions SearchConcepts, GetCuis and GetDataRowsCols. First we describe how to use these functions. Subsequently, for those interested we explain the structures of `concMapper` and `posiMapper` in more detail.
+Lookups between data and terminology are provided via the `concMapper` and `posiMapper` list objects. To simplify their use we have provided the helper functions `ConvertDataTerm,` `SearchConcepts`, `GetCuis` and `GetDataRowsCols`. First we describe how to use these functions. Subsequently, for those interested we explain the structures of `concMapper` and `posiMapper` in more detail.
+
+## Combining all terminology with data
+
+The simplest approach is to run the function `ConvertDataTerm`. This takes a table object and produces a dataframe with the data and additional column(s) with the selected UMLS concept IDs. It can map any columns from the terminology dataframe (the output produced by the `ConvertTerminology` function) to the data dataframe. It might make sense to first review the output of `ConvertData` and `ConvertTerminology` before running `ConvertDataTerm`.
+
+```{r convertdataterm}
+ConvertDataTerm(clctn$TID12095) %>% head() %>% knitr::kable()
+```
 
 ## Approach using SearchConcepts, GetCuis and GetDataRowsCols
 
@@ -147,7 +175,7 @@ res_r_c %>%
   knitr::kable()
 ```
 
-Finally, we can obtain the relevant data by joining the above table to the data table by rows and columns.
+Finally, we can obtain the relevant data by joining the above dataframe to the data dataframe by rows and columns.
 
 ```{r getdata}
 mydf <- ConvertData(clctn$TID12078)
@@ -238,7 +266,7 @@ ConvertTerminology(clctn$TID12095)  %>% slice(c(1, 40)+1) %>%
 
 # Updates
 
-TableTidier is evolving in response to user feedback. As such, and to add functionality the code in this repository is likely to change too. Therefore, if using these functions with TableTidier it is worth storing both your collection json files and these R functions at the timepoint of your succesful analysis. This will help with reproducibility. Since both the json collection and [restructuring.R](/restructuring.R) are text files, it is straightforward to store both using git-based version control. 
+TableTidier is evolving in response to user feedback. As such, and to add functionality the code in this repository is likely to change too. Therefore, if using these functions with TableTidier it is worth storing both your collection json files and these R functions at the timepoint of your succesful analysis. This will help with reproducibility. Since both the json collection and [restructuring.R](/restructuring.R) are text files, it is straightforward to store both using git-based version control.
 
 # Suggestions and contributions
 
